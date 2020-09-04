@@ -129,7 +129,7 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
     }
     else if(IsHipClangCompiler())
     {
-        //        params += " -mllvm -amdgpu-enable-global-sgpr-addr";
+        //params += " -mllvm -amdgpu-enable-global-sgpr-addr";
         params += " -mllvm --amdgpu-spill-vgpr-to-agpr=0";
     }
 
@@ -193,7 +193,12 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
                          "--type=o --targets=hip-amdgcn-amd-amdhsa-" + dev_name + " --inputs=" +
                              bin_file.string() + " --outputs=" + bin_file.string() +
                              ".hsaco --unbundle");
-
+        if(miopen::IsEnabled(MIOPEN_DEBUG_HIP_DUMP{}))
+        {
+            std::string isa_file("gridwise_convolution_backward_weights_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw-hip-amdgcn-amd-amdhsa-gfx908.s");
+            auto isa_path = tmp_dir->path / isa_file;
+            tmp_dir->Execute("grep", " -B 13 Occupancy " +  isa_path.string());
+        }
         auto hsaco =
             std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
                          {},
