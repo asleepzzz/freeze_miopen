@@ -978,12 +978,12 @@ ConvSolution ConvHipImplicitGemmForwardV4R4Xdlops::GetSolution(
 
         if((y > 1 || x > 1) &&
            (in_left_pad_h > 0 || in_left_pad_w > 0 || in_right_pad_h > 0 || in_right_pad_w > 0))
-	   construction_parameters.comp_options += "";
-	else
-	   construction_parameters.comp_options += " -mllvm -amdgpu-enable-global-sgpr-addr";
+            construction_parameters.comp_options += "";
+        else
+            construction_parameters.comp_options += " -mllvm -amdgpu-enable-global-sgpr-addr";
     }
     else
-	   construction_parameters.comp_options += "";
+        construction_parameters.comp_options += "";
 
     result.invoker_factory = conv::MakeImplGemmDataInvokerFactory(ctx);
     result.construction_params.push_back(construction_parameters);

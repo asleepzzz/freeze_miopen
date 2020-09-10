@@ -194,9 +194,10 @@ boost::filesystem::path HipBuild(boost::optional<TmpDir>& tmp_dir,
                              ".hsaco --unbundle");
         if(miopen::IsEnabled(MIOPEN_DEBUG_HIP_DUMP{}))
         {
-            std::string isa_file("gridwise_convolution_backward_weights_implicit_gemm_v4r4_xdlops_nchw_kcyx_nkhw-hip-amdgcn-amd-amdhsa-gfx908.s");
+            std::string isa_file("gridwise_convolution_backward_weights_implicit_gemm_v4r4_xdlops_"
+                                 "nchw_kcyx_nkhw-hip-amdgcn-amd-amdhsa-gfx908.s");
             auto isa_path = tmp_dir->path / isa_file;
-            tmp_dir->Execute("grep", " -B 13 Occupancy " +  isa_path.string());
+            tmp_dir->Execute("grep", " -B 13 Occupancy " + isa_path.string());
         }
         auto hsaco =
             std::find_if(boost::filesystem::directory_iterator{tmp_dir->path},
