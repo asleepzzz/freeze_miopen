@@ -77,10 +77,6 @@
 #ifndef CK_WORKAROUND_SWDEV_241664
 #define CK_WORKAROUND_SWDEV_241664 1
 #endif
-//workaround for cbranch of load
-#ifndef CK_WORKAROUND_SWDEV_000000
-#define CK_WORKAROUND_SWDEV_000000 1
-#endif
 
 namespace ck {
 
