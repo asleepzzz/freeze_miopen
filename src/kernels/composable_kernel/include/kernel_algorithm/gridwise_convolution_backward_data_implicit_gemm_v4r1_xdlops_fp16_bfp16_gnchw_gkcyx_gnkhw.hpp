@@ -244,8 +244,10 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                                         make_tuple(PassThrough<G>{},
                                                    PassThrough<N>{},
                                                    PassThrough<K>{},
-                                                   PassThrough<YTilda>{},
-                                                   PassThrough<XTilda>{},
+                                                   PassThrough<YDot>{},
+                                                   PassThrough<XDot>{},
+						   //PassThrough<1>{},
+						   //PassThrough<1>{},
                                                    Slice<Sequence<HTilda, WTilda>,
                                                          Sequence<iHTildaLeft, iWTildaLeft>,
                                                          Sequence<iHTildaRight, iWTildaRight>>{}),
@@ -283,6 +285,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
         constexpr index_t Hip = in_g_n_c_hip_wip_global_desc.GetLengths()[3];
         constexpr index_t Wip = in_g_n_c_hip_wip_global_desc.GetLengths()[4];
 
+
         constexpr auto in_g_n_c_ytilda_htilda_xtilda_wtilda_global_desc =
             transform_tensor_descriptor(
                 in_g_n_c_hip_wip_global_desc,
@@ -305,6 +308,19 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                            Sequence<3, 4>{},
                            Sequence<5, 6>{}));
 
+        constexpr auto in_g_n_c_htildaslice_wtildaslice_global_desc = transform_tensor_descriptor(
+            in_g_n_c_ytilda_htilda_xtilda_wtilda_global_desc,
+            make_tuple(PassThrough<G>{},
+                       PassThrough<N>{},
+                       PassThrough<C>{},
+                       Freeze<Sequence<YTilda, XTilda>, Sequence<iYTilda, iXTilda>>{},
+                       Slice<Sequence<HTilda, WTilda>,
+                             Sequence<iHTildaLeft, iWTildaLeft>,
+                             Sequence<iHTildaRight, iWTildaRight>>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3, 5>{}, Sequence<4, 6>{}),
+            make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<>{}, Sequence<3, 4>{}));
+	
+	/*
         constexpr auto in_g_n_c_ytilda_htildaslice_xtilda_wtildaslice_global_desc =
             transform_tensor_descriptor(in_g_n_c_ytilda_htilda_xtilda_wtilda_global_desc,
                                         make_tuple(PassThrough<G>{},
@@ -327,7 +343,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                                                    Sequence<3>{},
                                                    Sequence<5>{},
                                                    Sequence<4, 6>{}));
-
+*/
         // GEMM
         constexpr index_t YDotSlice = (iYTilda + 1) * YDot <= Y ? YDot : Y % YDot;
         constexpr index_t XDotSlice = (iXTilda + 1) * XDot <= X ? XDot : X % XDot;
@@ -340,7 +356,7 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
         constexpr index_t GemmK = K * YDotSlice * XDotSlice / GemmKPACK;
 
         // A matrix
-        constexpr auto wei_g_k_c_ydotslice_ytidaslice_xdotslice_xtildaslice_global_desc =
+        constexpr auto wei_g_k_c_ydotslice_xdotslice_global_desc =
             transform_tensor_descriptor(
                 wei_g_k_c_ydot_ytilda_xdot_xtilda_global_desc,
                 make_tuple(
@@ -348,9 +364,10 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                     PassThrough<K>{},
                     PassThrough<C>{},
                     Slice<Sequence<YDot, XDot>, Sequence<0, 0>, Sequence<YDotSlice, XDotSlice>>{},
-                    Slice<Sequence<YTilda, XTilda>,
-                          Sequence<iYTilda, iXTilda>,
-                          Sequence<iYTilda + 1, iXTilda + 1>>{}),
+		    Freeze<Sequence<YTilda, XTilda>, Sequence<iYTilda, iXTilda>>{}),
+                    //Slice<Sequence<YTilda, XTilda>,
+                    //      Sequence<iYTilda, iXTilda>,
+                    //      Sequence<iYTilda + 1, iXTilda + 1>>{}),
                 make_tuple(Sequence<0>{},
                            Sequence<1>{},
                            Sequence<2>{},
@@ -359,15 +376,15 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
                 make_tuple(Sequence<0>{},
                            Sequence<1>{},
                            Sequence<2>{},
-                           Sequence<3, 5>{},
-                           Sequence<4, 6>{}));
+                           Sequence<3, 4>{},
+                           Sequence<>{}));
 
         constexpr auto wei_gemmg_gemmk_gemmm_global_desc = transform_tensor_descriptor(
-            wei_g_k_c_ydotslice_ytidaslice_xdotslice_xtildaslice_global_desc,
+            wei_g_k_c_ydotslice_xdotslice_global_desc,
             make_tuple(PassThrough<G>{},
                        Merge<Sequence<K, YDotSlice, XDotSlice>>{},
-                       Merge<Sequence<C, 1, 1>>{}),
-            make_tuple(Sequence<0>{}, Sequence<1, 3, 5>{}, Sequence<2, 4, 6>{}),
+                       PassThrough<C>{}),
+            make_tuple(Sequence<0>{}, Sequence<1, 3, 4>{}, Sequence<2>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
         constexpr auto wei_gemmg_gemmk_gemmkpack_gemmm_global_desc = transform_tensor_descriptor(
@@ -435,35 +452,34 @@ struct GridwiseConvolutionBackwardDataImplicitGemm_v4r1_xdlops_fp16_bfp16_gnchw_
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}, Sequence<3>{}));
 
         // C matrix
+	/*
         constexpr auto in_g_n_c_ytildaslice_htildaslice_xtildaslice_wtildaslice_global_desc =
             transform_tensor_descriptor(in_g_n_c_ytilda_htildaslice_xtilda_wtildaslice_global_desc,
                                         make_tuple(PassThrough<G>{},
                                                    PassThrough<N>{},
                                                    PassThrough<C>{},
-                                                   PassThrough<HTildaSlice>{},
-                                                   PassThrough<WTildaSlice>{},
-                                                   Slice<Sequence<YTilda, XTilda>,
-                                                         Sequence<iYTilda, iXTilda>,
-                                                         Sequence<iYTilda + 1, iXTilda + 1>>{}),
+						   Freeze<Sequence<YTilda, XTilda>, Sequence<iYTilda, iXTilda>>{},
+						   Slice<Sequence<HTilda, WTilda>,
+                                                         Sequence<iHTildaLeft, iWTildaLeft>,
+                                                         Sequence<iHTildaRight, iWTildaRight>>{}),
                                         make_tuple(Sequence<0>{},
                                                    Sequence<1>{},
                                                    Sequence<2>{},
-                                                   Sequence<4>{},
-                                                   Sequence<6>{},
-                                                   Sequence<3, 5>{}),
+                                                   Sequence<3,5>{},
+                                                   Sequence<4,6>{}),
                                         make_tuple(Sequence<0>{},
                                                    Sequence<1>{},
                                                    Sequence<2>{},
-                                                   Sequence<4>{},
-                                                   Sequence<6>{},
-                                                   Sequence<3, 5>{}));
-
+                                                   Sequence<>{},
+                                                   Sequence<3,4>{}));
+*/
         constexpr auto in_gemmg_gemmm_gemmn_global_desc = transform_tensor_descriptor(
-            in_g_n_c_ytildaslice_htildaslice_xtildaslice_wtildaslice_global_desc,
+            in_g_n_c_htildaslice_wtildaslice_global_desc,
+            //in_g_n_c_ytildaslice_htildaslice_xtildaslice_wtildaslice_global_desc,
             make_tuple(PassThrough<G>{},
-                       Merge<Sequence<C, 1, 1>>{},
+                       PassThrough<C>{},
                        Merge<Sequence<N, HTildaSlice, WTildaSlice>>{}),
-            make_tuple(Sequence<0>{}, Sequence<2, 3, 5>{}, Sequence<1, 4, 6>{}),
+            make_tuple(Sequence<0>{}, Sequence<2>{}, Sequence<1, 3, 4>{}),
             make_tuple(Sequence<0>{}, Sequence<1>{}, Sequence<2>{}));
 
         constexpr auto gridwise_gemm = GridwiseBatchGemmXdlops_gkmkpack_gknkpack_gmn_v2<
